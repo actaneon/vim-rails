@@ -694,8 +694,16 @@ function! s:readable_calculate_file_type() dict abort
     let r = "test-integration"
   elseif f =~ '\<spec/lib/.*_spec\.rb$'
     let r = 'spec-lib'
+
+  elseif f =~ '\<spec_fast/domain/.*_spec\.rb$'
+    let r = 'spec-domain'
+
   elseif f =~ '\<lib/.*\.rb$'
     let r = 'lib'
+
+  elseif f =~ '\<domain/.*\.rb$'
+    let r = 'domain'
+
   elseif f =~ '\<spec/\w*s/.*_spec\.rb$'
     let r = s:sub(f,'.*<spec/(\w*)s/.*','spec-\1')
   elseif f =~ '\<features/.*\.feature$'
@@ -2125,6 +2133,11 @@ function! s:RailsIncludefind(str,...)
   if str =~# '^lib/' && !filereadable(str)
     let str = s:sub(str,'^lib/','')
   endif
+
+  if str =~# '^app/domain/' && !filereadable(str)
+    let str = s:sub(str,'^app/domain/','')
+  endif
+
   return str
 endfunction
 
@@ -2172,6 +2185,7 @@ function! s:BufFinderCommands()
   call s:addfilecmds("plugin")
   call s:addfilecmds("task")
   call s:addfilecmds("lib")
+  call s:addfilecmds("domain")
   call s:addfilecmds("environment")
   call s:addfilecmds("initializer")
 endfunction
@@ -3199,8 +3213,16 @@ function! s:readable_related(...) dict abort
       endif
     elseif self.type_name('spec-lib')
       return s:sub(file,'<spec/','')
+
+    elseif self.type_name('spec-domain')
+      return s:sub(file,'<spec_fast/','')
+
     elseif self.type_name('lib')
       return s:sub(f, '<lib/(.*)\.rb$', 'test/unit/\1_test.rb')."\n".s:sub(f, '<lib/(.*)\.rb$', 'spec/lib/\1_spec.rb')
+
+    elseif self.type_name('domain')
+      return s:sub(f, '<app/domain/(.*)\.rb$', 'test/unit/\1_test.rb')."\n".s:sub(f, '<app/domain/(.*)\.rb$', 'spec_fast/domain/\1_spec.rb')
+
     elseif self.type_name('spec')
       return s:sub(file,'<spec/','app/')
     elseif file =~ '\<vendor/.*/lib/'
@@ -3558,6 +3580,7 @@ function! s:app_user_classes() dict
           \ self.relglob("app/models/","**/*",".rb") +
           \ controllers +
           \ self.relglob("app/helpers/","**/*",".rb") +
+          \ self.relglob("app/domain/","**/*",".rb") +
           \ self.relglob("lib/","**/*",".rb")
     call map(classes,'rails#camelize(v:val)')
     call self.cache.set("user_classes",classes)
@@ -4444,7 +4467,7 @@ function! s:SetBasePath()
   let old_path = s:pathsplit(s:sub(self.getvar('&path'),'^\.%(,|$)',''))
   call filter(old_path,'!s:startswith(v:val,transformed_path)')
 
-  let path = ['app', 'app/models', 'app/controllers', 'app/helpers', 'config', 'lib', 'app/views']
+  let path = ['app', 'app/models', 'app/domain', 'app/controllers', 'app/helpers', 'config', 'lib', 'app/views']
   if self.controller_name() != ''
     let path += ['app/views/'.self.controller_name(), 'public']
   endif
@@ -4452,7 +4475,7 @@ function! s:SetBasePath()
     let path += ['test', 'test/unit', 'test/functional', 'test/integration']
   endif
   if self.app().has('spec')
-    let path += ['spec', 'spec/models', 'spec/controllers', 'spec/helpers', 'spec/views', 'spec/lib', 'spec/requests', 'spec/integration']
+    let path += ['spec', 'spec/models', 'spec_fast/domain', 'spec/controllers', 'spec/helpers', 'spec/views', 'spec/lib', 'spec/requests', 'spec/integration']
   endif
   let path += ['app/*', 'vendor', 'vendor/plugins/*/lib', 'vendor/plugins/*/test', 'vendor/rails/*/lib', 'vendor/rails/*/test']
   call map(path,'self.app().path(v:val)')
